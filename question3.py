@@ -2,60 +2,48 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import quad
 
-# 原始函數 f(x) = x^2 * sin(x)
-def f(x):
-    return x**2 * np.sin(x)
+# 基本設定
+m = 16
+n = 4
+f = lambda x: x**2 * np.sin(x)
+x_vals = np.linspace(0, 1, m, endpoint=False)
+y_vals = f(x_vals)
 
-# 三角基底函數（a_0/2, cos(2πkx), sin(2πkx)）
-def trig_basis(k, x):
-    if k == 0:
-        return np.ones_like(x)
-    elif k % 2 == 1:
-        return np.cos((k // 2 + 1) * 2 * np.pi * x)  # cos
-    else:
-        return np.sin((k // 2) * 2 * np.pi * x)      # sin
+# (a) 計算傅立葉係數
+a0 = (1/m) * np.sum(y_vals)
+ak = [(2/m) * np.sum(y_vals * np.cos(2 * np.pi * k * x_vals)) for k in range(1, n+1)]
+bk = [(2/m) * np.sum(y_vals * np.sin(2 * np.pi * k * x_vals)) for k in range(1, n+1)]
 
-# (a) 離散最小平方法係數計算
-def S4_coefficients(m, n, x_samples, y_samples):
-    coeffs = []
-    for k in range(2 * n + 1):
-        phi_k = trig_basis(k, x_samples)
-        c_k = np.dot(y_samples, phi_k) * 2 / m
-        coeffs.append(c_k)
-    return coeffs
+# 輸出係數 a₀, a₁~a₄, b₁~b₄
+print("===== (a) Fourier Coefficients of S₄(x) =====")
+print(f"a₀ = {a0:.6f}")
+for k in range(1, n+1):
+    print(f"a{k} = {ak[k-1]:.6f},  b{k} = {bk[k-1]:.6f}")
+print()
 
-# 建立 S_4(x) 函數
-def S4(x, coeffs):
-    result = coeffs[0] / 2  # a0/2
-    for k in range(1, len(coeffs)):
-        result += coeffs[k] * trig_basis(k, x)
+# 定義 S₄(x)
+def S4(x):
+    result = a0
+    for k in range(1, n+1):
+        result += ak[k-1] * np.cos(2 * np.pi * k * x) + bk[k-1] * np.sin(2 * np.pi * k * x)
     return result
 
-# 參數設定
-m = 16            # 離散點數
-n = 4             # 三角多項式階數
-x_samples = np.linspace(0, 1, m, endpoint=False)
-y_samples = f(x_samples)
-coeffs = S4_coefficients(m, n, x_samples, y_samples)
+# (b) ∫₀¹ S₄(x) dx
+integral_S4, _ = quad(S4, 0, 1)
 
-# (b) 計算 ∫₀¹ S₄(x) dx
-integral_S4, _ = quad(lambda x: S4(x, coeffs), 0, 1)
+# (c) ∫₀¹ x² sin(x) dx
+integral_fx, _ = quad(f, 0, 1)
+difference = abs(integral_fx - integral_S4)
 
-# (c) 計算真值 ∫₀¹ x^2 sin(x) dx
-integral_true, _ = quad(f, 0, 1)
+# (d) E(S₄)
+S4_vals = np.array([S4(x) for x in x_vals])
+error = np.sum((y_vals - S4_vals) ** 2)
 
-# (d) 計算平方誤差 E(S₄) = ∫₀¹ (f(x) - S₄(x))² dx
-error, _ = quad(lambda x: (f(x) - S4(x, coeffs))**2, 0, 1)
-
-# 顯示結果
-print("=== (a) Trigonometric Least Squares Polynomial S₄(x) ===")
-print("S₄(x) = (a₀)/2 + Σ [aₖ cos(2πk x) + bₖ sin(2πk x)], k=1~4")
-for i, c in enumerate(coeffs):
-    basis_type = "a₀/2" if i == 0 else ("a" + str(i//2 + 1) if i % 2 == 1 else "b" + str(i//2))
-    print(f"  {basis_type} = {c:.6f}")
-
-print("\n=== (b) ∫₀¹ S₄(x) dx ≈ {:.6f}".format(integral_S4))
-print("=== (c) ∫₀¹ x² sin(x) dx ≈ {:.6f}".format(integral_true))
-print("=== (d) Error E(S₄) ≈ {:.6f}".format(error))
+# 輸出 b, c, d 結果
+print("===== (b), (c), (d) Results =====")
+print(f"(b) ∫₀¹ S₄(x) dx ≈ {integral_S4:.6f}")
+print(f"(c) ∫₀¹ x² sin(x) dx ≈ {integral_fx:.6f}")
+print(f"    差值 ≈ {difference:.6f}")
+print(f"(d) E(S₄) ≈ {error:.6f}")
 
 

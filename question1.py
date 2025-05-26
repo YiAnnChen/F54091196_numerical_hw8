@@ -1,44 +1,40 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from numpy.polynomial.polynomial import Polynomial
-from scipy.optimize import curve_fit
 
 # 原始資料
 x = np.array([4.0, 4.2, 4.5, 4.7, 5.1, 5.5, 5.9, 6.3])
 y = np.array([102.6, 113.2, 130.1, 142.1, 167.5, 195.1, 224.9, 256.8])
 
-# (a) 多項式擬合 (二次)
-poly2 = Polynomial.fit(x, y, deg=2)
-y_poly2 = poly2(x)
-error_poly2 = np.sum((y - y_poly2) ** 2)
+# (a) 二次多項式 y = a2*x^2 + a1*x + a0
+coeffs_quad = np.polyfit(x, y, 2)
+y_quad = np.polyval(coeffs_quad, x)
+error_quad = np.sum((y - y_quad) ** 2)
 
-# 顯示多項式參數
-coeffs_poly2 = poly2.convert().coef
-print("a. Polynomial degree 2 approximation:")
-print(f"   y = {coeffs_poly2[0]:.4f} + {coeffs_poly2[1]:.4f}x + {coeffs_poly2[2]:.4f}x^2")
-print(f"   Error = {error_poly2:.6f}\n")
-
-# (b) 指數擬合 y = b * e^(a * x)
-def model_exp(x, a, b):
-    return b * np.exp(a * x)
-
-params_exp, _ = curve_fit(model_exp, x, y)
-y_exp = model_exp(x, *params_exp)
+# (b) 指數形式 y = b * e^(a * x)
+# 取 log 轉為線性關係 ln(y) = ln(b) + a*x
+log_y = np.log(y)
+A_exp = np.vstack([x, np.ones(len(x))]).T
+a_exp, log_b_exp = np.linalg.lstsq(A_exp, log_y, rcond=None)[0]
+b_exp = np.exp(log_b_exp)
+y_exp = b_exp * np.exp(a_exp * x)
 error_exp = np.sum((y - y_exp) ** 2)
 
-print("b. Exponential approximation (y = b * e^(a * x)):")
-print(f"   y = {params_exp[1]:.4f} * exp({params_exp[0]:.4f} * x)")
-print(f"   Error = {error_exp:.6f}\n")
+# (c) 次方形式 y = b * x^n
+# 取 log 轉為線性關係 ln(y) = ln(b) + n*ln(x)
+log_x = np.log(x)
+A_pow = np.vstack([log_x, np.ones(len(x))]).T
+n_pow, log_b_pow = np.linalg.lstsq(A_pow, np.log(y), rcond=None)[0]
+b_pow = np.exp(log_b_pow)
+y_pow = b_pow * x ** n_pow
+error_pow = np.sum((y - y_pow) ** 2)
 
-# (c) 冪次擬合 y = b * x^n
-def model_power(x, n, b):
-    return b * x ** n
+# 顯示結果
+print("=== Least Squares Approximation Results ===")
+print(f"(a) Quadratic: y = {coeffs_quad[0]:.4f}x² + {coeffs_quad[1]:.4f}x + {coeffs_quad[2]:.4f}")
+print(f"    Error = {error_quad:.4f}")
+print(f"(b) Exponential: y = {b_exp:.4f} * e^({a_exp:.4f}x)")
+print(f"    Error = {error_exp:.4f}")
+print(f"(c) Power: y = {b_pow:.4f} * x^{n_pow:.4f}")
+print(f"    Error = {error_pow:.4f}")
 
-params_power, _ = curve_fit(model_power, x, y)
-y_power = model_power(x, *params_power)
-error_power = np.sum((y - y_power) ** 2)
-
-print("c. Power approximation (y = b * x^n):")
-print(f"   y = {params_power[1]:.4f} * x^{params_power[0]:.4f}")
-print(f"   Error = {error_power:.6f}\n")
 
